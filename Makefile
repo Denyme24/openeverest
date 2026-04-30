@@ -197,14 +197,6 @@ test:                   ## Run unit tests.
 	mkdir -p ./public/dist && [ -f ./public/dist/index.html ] || touch ./public/dist/index.html
 	CGO_ENABLED=1 go test -race -timeout=20m ./...
 
-.PHONY: test-api
-test-api:               ## Run API integration tests.
-	$(MAKE) -C api-tests test
-
-.PHONY: test-cli
-test-cli:               ## Run CLI integration tests.
-	$(MAKE) -C cli-tests test-cli
-
 .PHONY: test-cover
 test-cover:             ## Run unit tests and collect per-package coverage information.
 # We need to ensure that /public/dist/index.html exists before running tests
