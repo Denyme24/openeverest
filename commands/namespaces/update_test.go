@@ -23,6 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/percona/everest/pkg/cli"
+	nscli "github.com/percona/everest/pkg/cli/namespaces"
 )
 
 func Test_shouldPromptOperatorsForNamespaceUpdate(t *testing.T) {
@@ -73,35 +74,26 @@ func Test_shouldUseInstalledOperatorsForNamespaceUpdate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name                 string
-		operatorFlagsChanged bool
-		skipWizard           bool
-		want                 bool
+		name       string
+		skipWizard bool
+		want       bool
 	}{
 		{
-			name:                 "use installed operators when skip wizard and no operator flags",
-			operatorFlagsChanged: false,
-			skipWizard:           true,
-			want:                 true,
+			name:       "use installed operators in skip wizard mode",
+			skipWizard: true,
+			want:       true,
 		},
 		{
-			name:                 "do not use installed operators when skip wizard and operator flags were set",
-			operatorFlagsChanged: true,
-			skipWizard:           true,
-			want:                 false,
-		},
-		{
-			name:                 "do not use installed operators in interactive mode",
-			operatorFlagsChanged: false,
-			skipWizard:           false,
-			want:                 false,
+			name:       "do not use installed operators in interactive mode",
+			skipWizard: false,
+			want:       false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := shouldUseInstalledOperatorsForNamespaceUpdate(tt.operatorFlagsChanged, tt.skipWizard)
+			got := shouldUseInstalledOperatorsForNamespaceUpdate(tt.skipWizard)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -143,5 +135,36 @@ func Test_operatorFlagsChangedOnUpdateCommand(t *testing.T) {
 		err := cmd.ParseFlags([]string{"--" + cli.FlagOperatorPostgresql + "=true"})
 		assert.NoError(t, err)
 		assert.True(t, operatorFlagsChangedOnUpdateCommand(cmd))
+	})
+}
+
+func Test_operatorFlagsChangedDetailsOnUpdateCommand(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no operator flags changed", func(t *testing.T) {
+		t.Parallel()
+		cmd := newUpdateCmdWithOperatorFlags(t)
+		err := cmd.ParseFlags([]string{})
+		assert.NoError(t, err)
+		got := operatorFlagsChangedDetailsOnUpdateCommand(cmd)
+		assert.Equal(t, nscli.OperatorFlagsChanged{}, got)
+	})
+
+	t.Run("single mysql flag changed", func(t *testing.T) {
+		t.Parallel()
+		cmd := newUpdateCmdWithOperatorFlags(t)
+		err := cmd.ParseFlags([]string{"--" + cli.FlagOperatorMySQL + "=true"})
+		assert.NoError(t, err)
+		got := operatorFlagsChangedDetailsOnUpdateCommand(cmd)
+		assert.Equal(t, nscli.OperatorFlagsChanged{PXC: true}, got)
+	})
+
+	t.Run("mysql via deprecated flag still tracked as pxc override", func(t *testing.T) {
+		t.Parallel()
+		cmd := newUpdateCmdWithOperatorFlags(t)
+		err := cmd.ParseFlags([]string{"--" + cli.FlagOperatorXtraDBCluster + "=false"})
+		assert.NoError(t, err)
+		got := operatorFlagsChangedDetailsOnUpdateCommand(cmd)
+		assert.Equal(t, nscli.OperatorFlagsChanged{PXC: true}, got)
 	})
 }

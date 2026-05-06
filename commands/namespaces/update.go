@@ -88,6 +88,7 @@ func namespacesUpdatePreRun(cmd *cobra.Command, args []string) { //nolint:revive
 	}
 
 	operatorFlagsChanged := operatorFlagsChangedOnUpdateCommand(cmd)
+	operatorFlagsChangedDetails := operatorFlagsChangedDetailsOnUpdateCommand(cmd)
 
 	// If user doesn't pass any --operator.* flags - need to ask explicitly
 	// (unless --skip-wizard, which must not call interactive prompts).
@@ -103,11 +104,12 @@ func namespacesUpdatePreRun(cmd *cobra.Command, args []string) { //nolint:revive
 	}
 
 	// For non-interactive update with no explicit --operator.* flags, keep current
-	// operators from each namespace instead of defaulting to all operators.
+	// operators from each namespace. Explicit --operator.* flags are applied
+	// as overrides on top of installed operators.
 	namespacesUpdateCfg.UpdateUseInstalledOperators = shouldUseInstalledOperatorsForNamespaceUpdate(
-		operatorFlagsChanged,
 		namespacesUpdateCfg.SkipWizard,
 	)
+	namespacesUpdateCfg.OperatorFlagsChanged = operatorFlagsChangedDetails
 }
 
 func namespacesUpdateRun(cmd *cobra.Command, _ []string) {
@@ -139,6 +141,15 @@ func operatorFlagsChangedOnUpdateCommand(cmd *cobra.Command) bool {
 		cmd.Flags().Lookup(cli.FlagOperatorMySQL).Changed
 }
 
+func operatorFlagsChangedDetailsOnUpdateCommand(cmd *cobra.Command) namespaces.OperatorFlagsChanged {
+	return namespaces.OperatorFlagsChanged{
+		PSMDB: cmd.Flags().Lookup(cli.FlagOperatorMongoDB).Changed,
+		PG:    cmd.Flags().Lookup(cli.FlagOperatorPostgresql).Changed,
+		PXC: cmd.Flags().Lookup(cli.FlagOperatorXtraDBCluster).Changed ||
+			cmd.Flags().Lookup(cli.FlagOperatorMySQL).Changed,
+	}
+}
+
 // shouldPromptOperatorsForNamespaceUpdate returns whether the update command should run
 // the interactive operator picker. When skipWizard is true, it always returns false.
 func shouldPromptOperatorsForNamespaceUpdate(operatorFlagsChanged, skipWizard bool) bool {
@@ -148,8 +159,8 @@ func shouldPromptOperatorsForNamespaceUpdate(operatorFlagsChanged, skipWizard bo
 	return !operatorFlagsChanged
 }
 
-func shouldUseInstalledOperatorsForNamespaceUpdate(operatorFlagsChanged, skipWizard bool) bool {
-	return skipWizard && !operatorFlagsChanged
+func shouldUseInstalledOperatorsForNamespaceUpdate(skipWizard bool) bool {
+	return skipWizard
 }
 
 // GetNamespacesUpdateCmd returns the command to update namespaces.

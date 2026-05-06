@@ -40,6 +40,13 @@ import (
 )
 
 type (
+	// OperatorFlagsChanged tracks which operator flags were explicitly provided.
+	OperatorFlagsChanged struct {
+		PG    bool
+		PSMDB bool
+		PXC   bool
+	}
+
 	// OperatorConfig identifies which operators shall be installed.
 	OperatorConfig struct {
 		PG    bool // is set if PostgresSQL shall be installed.
@@ -84,6 +91,8 @@ type (
 		// UpdateUseInstalledOperators keeps the existing operators on namespace update
 		// when user did not provide explicit --operator.* flags.
 		UpdateUseInstalledOperators bool
+		// OperatorFlagsChanged tracks explicit operator flags to apply as overrides.
+		OperatorFlagsChanged OperatorFlagsChanged
 	}
 
 	// NamespaceAdder provides the functionality to add namespaces.
@@ -399,6 +408,7 @@ func (n *NamespaceAdder) provisionDBNamespace(
 		if err != nil {
 			return err
 		}
+		ops = applyOperatorOverrides(ops, n.cfg.Operators, n.cfg.OperatorFlagsChanged)
 	}
 
 	values := Must(helmutils.MergeVals(n.getValuesForOperators(ops), nil))
@@ -418,6 +428,23 @@ func (n *NamespaceAdder) provisionDBNamespace(
 	}
 	n.l.Info("Installing DB namespace Helm chart in namespace ", namespace)
 	return installer.Install(ctx)
+}
+
+func applyOperatorOverrides(
+	base OperatorConfig,
+	overrides OperatorConfig,
+	changed OperatorFlagsChanged,
+) OperatorConfig {
+	if changed.PG {
+		base.PG = overrides.PG
+	}
+	if changed.PSMDB {
+		base.PSMDB = overrides.PSMDB
+	}
+	if changed.PXC {
+		base.PXC = overrides.PXC
+	}
+	return base
 }
 
 func (n *NamespaceAdder) getInstalledOperatorsForNamespace(ctx context.Context, namespace string) (OperatorConfig, error) {
