@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Box, Paper } from '@mui/material';
+import { Box, MenuItem, Paper, TextField } from '@mui/material';
 import { useState, useEffect, useRef } from 'react';
-import { JsonEditorPanel } from './json-editor-panel/json-editor-panel';
+import { useNamespaces } from 'hooks/api/namespaces';
+import { YamlEditorPanel } from './yaml-editor-panel/yaml-editor-panel';
 import schemaYaml from 'components/ui-generator/ui-generator.mock.yaml?raw';
-import { TopologyUISchemas } from '../../components/ui-generator/ui-generator.types';
+import { TopologyUISchemas } from 'components/ui-generator/ui-generator.types';
 import { ErrorBoundary } from 'utils/ErrorBoundary';
 import { GenericError } from 'pages/generic-error/GenericError';
 import { ErrorContextProvider } from 'utils/ErrorBoundaryProvider';
 import { DynamicForm } from './dynamic-form-preview/dynamic-form-preview';
-import { formatYamlText, yamlToJson } from './utils/yaml-json-converter';
+import { formatYamlText } from './utils/yaml-json-converter';
+import { validateSchema } from './utils/validate-schema';
+import { Diagnostic } from './editor/protocol';
 
 export const UIGeneratorBuilder = () => {
   const defaultYamlText = schemaYaml;
@@ -29,13 +32,27 @@ export const UIGeneratorBuilder = () => {
   const [parsedSchema, setParsedSchema] = useState<TopologyUISchemas | null>(
     null
   );
-  const [error, setError] = useState<string>('');
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [leftWidth, setLeftWidth] = useState(25); // percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Namespace context for the preview. Data-source providers (storage classes,
+  // monitoring configs) only fetch when a namespace is set, so we let the
+  // developer pick one and default to the first available.
+  const { data: namespaces = [], isLoading: namespacesLoading } =
+    useNamespaces();
+  const [selectedNamespace, setSelectedNamespace] = useState('');
+
   useEffect(() => {
-    validateYaml(defaultYamlText);
+    if (!selectedNamespace && namespaces.length > 0) {
+      setSelectedNamespace(namespaces[0]);
+    }
+  }, [namespaces, selectedNamespace]);
+
+  useEffect(() => {
+    handleYamlChange(defaultYamlText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -68,31 +85,21 @@ export const UIGeneratorBuilder = () => {
 
   const handleYamlChange = (text: string) => {
     setYamlText(text);
-    validateYaml(text);
-  };
-
-  const validateYaml = (text: string) => {
-    try {
-      const parsed = yamlToJson(text);
-      setParsedSchema(parsed);
-      setError('');
-    } catch (err) {
-      setError(
-        err instanceof Error ? `YAML Error: ${err.message}` : 'Invalid YAML'
-      );
-      setParsedSchema(null);
-    }
+    const { diagnostics, parsed } = validateSchema(text);
+    setDiagnostics(diagnostics);
+    setParsedSchema(parsed);
   };
 
   const formatYaml = () => {
     try {
-      const parsed = yamlToJson(yamlText);
       const formatted = formatYamlText(yamlText);
       setYamlText(formatted);
+      const { diagnostics, parsed } = validateSchema(formatted);
+      setDiagnostics(diagnostics);
       setParsedSchema(parsed);
-      setError('');
     } catch {
-      setError('Invalid YAML format');
+      // Unparseable YAML cannot be formatted; validateSchema already surfaced
+      // the syntax error on the previous change, so leave state as-is.
     }
   };
 
@@ -123,9 +130,9 @@ export const UIGeneratorBuilder = () => {
               },
         ]}
       >
-        <JsonEditorPanel
+        <YamlEditorPanel
           yamlText={yamlText}
-          error={error}
+          diagnostics={diagnostics}
           onChange={handleYamlChange}
           onFormat={formatYaml}
         />
@@ -186,11 +193,30 @@ export const UIGeneratorBuilder = () => {
             flexDirection: 'column',
           }}
         >
+          <TextField
+            select
+            size="small"
+            label="Preview namespace"
+            value={selectedNamespace}
+            onChange={(e) => setSelectedNamespace(e.target.value)}
+            disabled={namespacesLoading || namespaces.length === 0}
+            helperText="Namespace used to load data-source providers (e.g. storage classes, monitoring configs)"
+            sx={{ mb: 2, maxWidth: 360 }}
+          >
+            {namespaces.map((ns) => (
+              <MenuItem key={ns} value={ns}>
+                {ns}
+              </MenuItem>
+            ))}
+          </TextField>
           {/*TODO add custom error boundary for FormBuilder*/}
           {parsedSchema && (
             <ErrorContextProvider>
               <ErrorBoundary fallback={<GenericError />}>
-                <DynamicForm schema={parsedSchema as TopologyUISchemas} />
+                <DynamicForm
+                  schema={parsedSchema as TopologyUISchemas}
+                  namespace={selectedNamespace}
+                />
               </ErrorBoundary>
             </ErrorContextProvider>
           )}

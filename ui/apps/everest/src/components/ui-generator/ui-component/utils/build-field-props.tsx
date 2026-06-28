@@ -20,11 +20,13 @@ import { coerceNumberInputValue } from './coerce-number-input-value';
 
 export const buildFieldProps = (
   uiType: FieldType,
-  mappedProps: MappedFieldProps,
+  mappedProps: MappedFieldProps | undefined,
   isDisabled: boolean
 ): Record<string, unknown> => {
+  // mappedProps is undefined when a field declares no `fieldParams` (e.g. a
+  // bare `uiType: hidden`); fall back to an empty object so destructuring is safe.
   const { badge, textFieldProps, selectFieldProps, ...restMappedProps } =
-    mappedProps;
+    mappedProps ?? {};
 
   const finalTextFieldProps = buildTextFieldProps(
     textFieldProps,
