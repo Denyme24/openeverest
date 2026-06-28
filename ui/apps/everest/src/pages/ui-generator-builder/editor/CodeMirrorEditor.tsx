@@ -72,13 +72,13 @@ export const CodeMirrorEditor = ({
       } else if (msg.type === 'error') {
         // Surface why the editor bundle failed before we drop to the textarea
         // fallback; otherwise a bundle crash leaves no trace.
+        // eslint-disable-next-line no-console
         console.error('YAML editor bundle error:', msg.message);
         setFailed(true);
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
