@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  parseDocument,
-  LineCounter,
-  isMap,
-  isSeq,
-  isScalar,
-  Node,
-} from 'yaml';
+import { parseDocument, LineCounter, isMap, isSeq, isScalar, Node } from 'yaml';
 import { ZodIssue } from 'zod';
 import { TopologyUISchemas } from 'components/ui-generator/ui-generator.types';
-import { topologyUISchemasSchema, FIELD_UI_TYPES } from './topology-ui-schema.zod';
+import {
+  topologyUISchemasSchema,
+  FIELD_UI_TYPES,
+} from './topology-ui-schema.zod';
 import { Diagnostic } from '../editor/protocol';
 
 type ValidateResult = {
@@ -52,7 +48,11 @@ const nearestExistingNode = (
   }
   // Underline the component KEY when the node is a collection (the error is
   // about a missing/invalid child), or the value itself when it's a scalar.
-  if (current && typeof current === 'object' && 'range' in (current as object)) {
+  if (
+    current &&
+    typeof current === 'object' &&
+    'range' in (current as object)
+  ) {
     if (isMap(current) || isSeq(current)) {
       return lastKeyNode ?? (current as Node);
     }

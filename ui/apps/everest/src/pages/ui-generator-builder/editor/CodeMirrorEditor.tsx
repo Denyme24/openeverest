@@ -66,7 +66,11 @@ export const CodeMirrorEditor = ({
       const msg = event.data;
       if (msg.type === 'ready') {
         setReady(true);
-        post({ type: 'init', value: valueRef.current, theme: themeRef.current });
+        post({
+          type: 'init',
+          value: valueRef.current,
+          theme: themeRef.current,
+        });
       } else if (msg.type === 'change') {
         onChangeRef.current(msg.value);
       } else if (msg.type === 'error') {
@@ -100,9 +104,7 @@ export const CodeMirrorEditor = ({
       <Box
         component="textarea"
         value={value}
-        onChange={(e) =>
-          onChange((e.target as HTMLTextAreaElement).value)
-        }
+        onChange={(e) => onChange((e.target as HTMLTextAreaElement).value)}
         spellCheck={false}
         sx={{
           width: '100%',

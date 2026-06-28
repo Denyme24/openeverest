@@ -30,13 +30,21 @@ describe('protocol guards', () => {
     expect(isEditorToHostMessage(null)).toBe(false);
     expect(isEditorToHostMessage({})).toBe(false);
     expect(isEditorToHostMessage('ready')).toBe(false);
-    expect(isEditorToHostMessage({ type: 'init', value: '', theme: 'light' })).toBe(false);
+    expect(
+      isEditorToHostMessage({ type: 'init', value: '', theme: 'light' })
+    ).toBe(false);
   });
 
   it('accepts well-formed host→editor messages', () => {
-    expect(isHostToEditorMessage({ type: 'init', value: '', theme: 'dark' })).toBe(true);
-    expect(isHostToEditorMessage({ type: 'setTheme', theme: 'light' })).toBe(true);
-    expect(isHostToEditorMessage({ type: 'setDiagnostics', diagnostics: [] })).toBe(true);
+    expect(
+      isHostToEditorMessage({ type: 'init', value: '', theme: 'dark' })
+    ).toBe(true);
+    expect(isHostToEditorMessage({ type: 'setTheme', theme: 'light' })).toBe(
+      true
+    );
+    expect(
+      isHostToEditorMessage({ type: 'setDiagnostics', diagnostics: [] })
+    ).toBe(true);
   });
 
   it('rejects messages with valid type but invalid payload', () => {

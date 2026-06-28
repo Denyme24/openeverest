@@ -60,7 +60,11 @@ describe('CodeMirrorEditor', () => {
     messageFromIframe({ type: 'ready' });
 
     expect(postSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'init', value: 'hello: world', theme: 'light' }),
+      expect.objectContaining({
+        type: 'init',
+        value: 'hello: world',
+        theme: 'light',
+      }),
       '*'
     );
   });
@@ -68,7 +72,12 @@ describe('CodeMirrorEditor', () => {
   it('calls onChange when the iframe reports a change', () => {
     const onChange = vi.fn();
     render(
-      <CodeMirrorEditor value="" onChange={onChange} diagnostics={[]} theme="light" />
+      <CodeMirrorEditor
+        value=""
+        onChange={onChange}
+        diagnostics={[]}
+        theme="light"
+      />
     );
     messageFromIframe({ type: 'ready' });
     messageFromIframe({ type: 'change', value: 'new: text' });
@@ -77,7 +86,12 @@ describe('CodeMirrorEditor', () => {
 
   it('falls back to a textarea if ready never arrives', () => {
     render(
-      <CodeMirrorEditor value="x: 1" onChange={() => {}} diagnostics={[]} theme="light" />
+      <CodeMirrorEditor
+        value="x: 1"
+        onChange={() => {}}
+        diagnostics={[]}
+        theme="light"
+      />
     );
     expect(getIframe()).not.toBeNull();
     act(() => {
@@ -89,7 +103,12 @@ describe('CodeMirrorEditor', () => {
 
   it('falls back to a textarea on an error message', () => {
     render(
-      <CodeMirrorEditor value="x: 1" onChange={() => {}} diagnostics={[]} theme="light" />
+      <CodeMirrorEditor
+        value="x: 1"
+        onChange={() => {}}
+        diagnostics={[]}
+        theme="light"
+      />
     );
     messageFromIframe({ type: 'error', message: 'boom' });
     expect(getIframe()).toBeNull();
@@ -119,13 +138,23 @@ describe('CodeMirrorEditor', () => {
 
   it('does not post setTheme before ready', () => {
     const { rerender } = render(
-      <CodeMirrorEditor value="" onChange={() => {}} diagnostics={[]} theme="light" />
+      <CodeMirrorEditor
+        value=""
+        onChange={() => {}}
+        diagnostics={[]}
+        theme="light"
+      />
     );
     const iframe = getIframe()!;
     const postSpy = vi.spyOn(iframe.contentWindow!, 'postMessage');
     // change theme prop BEFORE ready
     rerender(
-      <CodeMirrorEditor value="" onChange={() => {}} diagnostics={[]} theme="dark" />
+      <CodeMirrorEditor
+        value=""
+        onChange={() => {}}
+        diagnostics={[]}
+        theme="dark"
+      />
     );
     expect(postSpy).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'setTheme' }),
@@ -136,7 +165,12 @@ describe('CodeMirrorEditor', () => {
   it('typing in the fallback textarea calls onChange', async () => {
     const onChange = vi.fn();
     render(
-      <CodeMirrorEditor value="a" onChange={onChange} diagnostics={[]} theme="light" />
+      <CodeMirrorEditor
+        value="a"
+        onChange={onChange}
+        diagnostics={[]}
+        theme="light"
+      />
     );
     messageFromIframe({ type: 'error', message: 'boom' });
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
