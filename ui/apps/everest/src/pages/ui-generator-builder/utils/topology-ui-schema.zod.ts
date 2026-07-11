@@ -13,17 +13,18 @@
 // limitations under the License.
 
 import { z } from 'zod';
+import { FieldType } from 'components/ui-generator/ui-generator.types';
 
-// Runtime schema for the parts of `TopologyUISchemas` the renderer depends on:
-// the topology -> sections -> components/groups skeleton and a known `uiType`
-// on every leaf. Everything else passes through, so authors can use any field
-// params without the validator getting in the way.
+// Runtime schema for the skeleton UIGenerator depends on: topology → sections →
+// components/groups, with a known `uiType` on every leaf. Everything else passes
+// through, so authors stay free to use any field params.
 
-// The allowed leaf field uiTypes. Exported so error messages can name them
-// without re-hardcoding the list (keeps the validator and its messages in sync).
-export const FIELD_UI_TYPES = ['number', 'select', 'text', 'hidden'] as const;
+// Leaf uiTypes, from the renderer's own enum so the validator can't drift.
+export const FIELD_UI_TYPES = Object.values(FieldType);
 
-const fieldUiType = z.enum(FIELD_UI_TYPES);
+const fieldUiType = z.nativeEnum(FieldType);
+
+// `group` is a container, not a field, so it has no FieldType member.
 const groupUiType = z.enum(['group', 'hidden']);
 
 const fieldSchema = z.object({ uiType: fieldUiType }).passthrough();
