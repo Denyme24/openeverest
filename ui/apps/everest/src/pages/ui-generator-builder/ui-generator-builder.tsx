@@ -13,8 +13,7 @@
 // limitations under the License.
 
 import { Box, MenuItem, Paper, TextField } from '@mui/material';
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNamespaces } from 'hooks/api/namespaces';
+import { useState } from 'react';
 import { YamlEditorPanel } from './yaml-editor-panel/yaml-editor-panel';
 import schemaYaml from 'components/ui-generator/ui-generator.mock.yaml?raw';
 import { TopologyUISchemas } from 'components/ui-generator/ui-generator.types';
@@ -23,61 +22,20 @@ import { GenericError } from 'pages/generic-error/GenericError';
 import { ErrorContextProvider } from 'utils/ErrorBoundaryProvider';
 import { DynamicForm } from './dynamic-form-preview/dynamic-form-preview';
 import { formatYamlText } from './utils/yaml-json-converter';
-import { validateSchema } from './utils/validate-schema';
+import { useSchemaValidation } from './hooks/use-schema-validation';
+import { useSplitPane } from './hooks/use-split-pane';
+import { usePreviewNamespace } from './hooks/use-preview-namespace';
 
 export const UIGeneratorBuilder = () => {
-  const defaultYamlText = schemaYaml;
-  const [yamlText, setYamlText] = useState(defaultYamlText);
-  const [leftWidth, setLeftWidth] = useState(25); // percentage
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Derived, not state, so every path that changes the text stays in sync.
-  const { diagnostics, parsed: parsedSchema } = useMemo(
-    () => validateSchema(yamlText),
-    [yamlText]
-  );
-
-  // Namespace context for the preview. Data-source providers (storage classes,
-  // monitoring configs) only fetch when a namespace is set, so we let the
-  // developer pick one and default to the first available.
-  const { data: namespaces = [], isLoading: namespacesLoading } =
-    useNamespaces();
-  const [selectedNamespace, setSelectedNamespace] = useState('');
-
-  useEffect(() => {
-    if (!selectedNamespace && namespaces.length > 0) {
-      setSelectedNamespace(namespaces[0]);
-    }
-  }, [namespaces, selectedNamespace]);
-
-  useEffect(() => {
-    if (!isDragging) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-
-      const container = containerRef.current;
-      const rect = container.getBoundingClientRect();
-      const newLeftWidth = ((e.clientX - rect.left) / rect.width) * 100;
-
-      if (newLeftWidth >= 20 && newLeftWidth <= 80) {
-        setLeftWidth(newLeftWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
+  const [yamlText, setYamlText] = useState(schemaYaml);
+  const { diagnostics, parsed: parsedSchema } = useSchemaValidation(yamlText);
+  const { containerRef, leftWidth, isDragging, startDragging } = useSplitPane();
+  const {
+    namespaces,
+    selectedNamespace,
+    setSelectedNamespace,
+    isLoading: namespacesLoading,
+  } = usePreviewNamespace();
 
   const formatYaml = () => {
     try {
@@ -122,7 +80,7 @@ export const UIGeneratorBuilder = () => {
         />
       </Box>
       <Box
-        onMouseDown={() => setIsDragging(true)}
+        onMouseDown={startDragging}
         sx={[
           {
             width: '8px',
