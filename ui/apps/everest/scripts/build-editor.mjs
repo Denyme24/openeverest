@@ -1,19 +1,58 @@
 /* eslint-disable no-undef, no-console */
 import { build } from 'vite';
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
-const entry = resolve(
-  appRoot,
-  'src/pages/ui-generator-builder/editor/cm-editor-entry.ts'
-);
-const outFile = resolve(
-  appRoot,
-  'src/pages/ui-generator-builder/editor/editor-bundle.generated.js'
-);
+const editorDir = resolve(appRoot, 'src/pages/ui-generator-builder/editor');
+const entry = resolve(editorDir, 'cm-editor-entry.ts');
+const outFile = resolve(editorDir, 'editor-bundle.generated.js');
+const hashFile = resolve(editorDir, '.editor-bundle.hash');
+
+// Fingerprint of the bundle's inputs; `--force` bypasses the skip.
+const inputHash = () => {
+  const hash = createHash('sha256');
+
+  const thisScript = fileURLToPath(import.meta.url);
+  for (const file of [entry, resolve(editorDir, 'protocol.ts'), thisScript]) {
+    hash.update(readFileSync(file));
+  }
+
+  // Resolved versions, not package.json ranges, to catch lockfile-only bumps.
+  const lockfile = resolve(appRoot, '../../pnpm-lock.yaml');
+  const codemirrorVersions = existsSync(lockfile)
+    ? readFileSync(lockfile, 'utf8')
+        .split('\n')
+        .filter((line) => line.startsWith("  '@codemirror/"))
+        .sort()
+    : // No lockfile: fall back to the declared ranges.
+      Object.entries(
+        JSON.parse(readFileSync(resolve(appRoot, 'package.json'), 'utf8'))
+          .dependencies ?? {}
+      )
+        .filter(([name]) => name.startsWith('@codemirror/'))
+        .map(([name, range]) => `${name}@${range}`)
+        .sort();
+
+  hash.update(codemirrorVersions.join('\n'));
+  return hash.digest('hex');
+};
+
+const currentHash = inputHash();
+const force = process.argv.includes('--force');
+
+if (
+  !force &&
+  existsSync(outFile) &&
+  existsSync(hashFile) &&
+  readFileSync(hashFile, 'utf8').trim() === currentHash
+) {
+  console.log('build-editor: inputs unchanged, skipping rebuild');
+  process.exit(0);
+}
 
 const result = await build({
   configFile: false,
@@ -46,4 +85,6 @@ const generated =
   `export const EDITOR_BUNDLE_SOURCE = ${JSON.stringify(source)};\n`;
 
 writeFileSync(outFile, generated);
+// After the bundle, so an interrupted build leaves no stale hash.
+writeFileSync(hashFile, `${currentHash}\n`);
 console.log(`build-editor: wrote ${outFile} (${source.length} bytes)`);

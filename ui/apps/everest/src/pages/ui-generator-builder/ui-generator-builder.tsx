@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Box, MenuItem, Paper, TextField } from '@mui/material';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNamespaces } from 'hooks/api/namespaces';
 import { YamlEditorPanel } from './yaml-editor-panel/yaml-editor-panel';
 import schemaYaml from 'components/ui-generator/ui-generator.mock.yaml?raw';
@@ -24,18 +24,19 @@ import { ErrorContextProvider } from 'utils/ErrorBoundaryProvider';
 import { DynamicForm } from './dynamic-form-preview/dynamic-form-preview';
 import { formatYamlText } from './utils/yaml-json-converter';
 import { validateSchema } from './utils/validate-schema';
-import { Diagnostic } from './editor/protocol';
 
 export const UIGeneratorBuilder = () => {
   const defaultYamlText = schemaYaml;
   const [yamlText, setYamlText] = useState(defaultYamlText);
-  const [parsedSchema, setParsedSchema] = useState<TopologyUISchemas | null>(
-    null
-  );
-  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [leftWidth, setLeftWidth] = useState(25); // percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Derived, not state, so every path that changes the text stays in sync.
+  const { diagnostics, parsed: parsedSchema } = useMemo(
+    () => validateSchema(yamlText),
+    [yamlText]
+  );
 
   // Namespace context for the preview. Data-source providers (storage classes,
   // monitoring configs) only fetch when a namespace is set, so we let the
@@ -49,11 +50,6 @@ export const UIGeneratorBuilder = () => {
       setSelectedNamespace(namespaces[0]);
     }
   }, [namespaces, selectedNamespace]);
-
-  useEffect(() => {
-    handleYamlChange(defaultYamlText);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -83,23 +79,11 @@ export const UIGeneratorBuilder = () => {
     };
   }, [isDragging]);
 
-  const handleYamlChange = (text: string) => {
-    setYamlText(text);
-    const { diagnostics, parsed } = validateSchema(text);
-    setDiagnostics(diagnostics);
-    setParsedSchema(parsed);
-  };
-
   const formatYaml = () => {
     try {
-      const formatted = formatYamlText(yamlText);
-      setYamlText(formatted);
-      const { diagnostics, parsed } = validateSchema(formatted);
-      setDiagnostics(diagnostics);
-      setParsedSchema(parsed);
+      setYamlText(formatYamlText(yamlText));
     } catch {
-      // Unparseable YAML cannot be formatted; validateSchema already surfaced
-      // the syntax error on the previous change, so leave state as-is.
+      // Unparseable YAML can't be formatted; the syntax error is already shown.
     }
   };
 
@@ -133,7 +117,7 @@ export const UIGeneratorBuilder = () => {
         <YamlEditorPanel
           yamlText={yamlText}
           diagnostics={diagnostics}
-          onChange={handleYamlChange}
+          onChange={setYamlText}
           onFormat={formatYaml}
         />
       </Box>

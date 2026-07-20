@@ -32,10 +32,10 @@ export const ROUTES: EverestRoute[] = [
     icon: SettingsIcon,
     text: 'Settings',
   },
-  // TODO: ui-generator-builder hidden from nav until tests coverage is delivered
+  // TODO: plugin-developer hidden from nav until tests coverage is delivered
   // {
-  //   to: '/ui-generator-builder',
+  //   to: '/plugin-developer',
   //   icon: SchemaIcon,
-  //   text: 'UI Generator Builder',
+  //   text: 'Plugin Developer',
   // },
 ];
