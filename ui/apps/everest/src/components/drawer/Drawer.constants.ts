@@ -15,7 +15,7 @@
 // limitations under the License.
 import StorageIcon from '@mui/icons-material/Storage';
 import SettingsIcon from '@mui/icons-material/Settings';
-// import SchemaIcon from '@mui/icons-material/Schema';
+import SchemaIcon from '@mui/icons-material/Schema';
 import { EverestRoute } from './Drawer.types';
 import { SettingsTabs } from 'pages/settings/settings.types';
 
@@ -32,10 +32,9 @@ export const ROUTES: EverestRoute[] = [
     icon: SettingsIcon,
     text: 'Settings',
   },
-  // TODO: plugin-developer hidden from nav until tests coverage is delivered
-  // {
-  //   to: '/plugin-developer',
-  //   icon: SchemaIcon,
-  //   text: 'Plugin Developer',
-  // },
+  {
+    to: '/plugin-developer',
+    icon: SchemaIcon,
+    text: 'Plugin Developer',
+  },
 ];

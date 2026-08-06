@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '..');
-const editorDir = resolve(appRoot, 'src/pages/ui-generator-builder/editor');
+const editorDir = resolve(appRoot, 'src/pages/plugin-developer/editor');
 const entry = resolve(editorDir, 'cm-editor-entry.ts');
 const outFile = resolve(editorDir, 'editor-bundle.generated.js');
 const hashFile = resolve(editorDir, '.editor-bundle.hash');
