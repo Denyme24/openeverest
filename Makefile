@@ -23,9 +23,11 @@ help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ## Location to install binaries to
-CWD = $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+CWD := $(CURDIR)
 LOCALBIN := $(CWD)/bin
-$(LOCALBIN):
+
+.PHONY: ensure-localbin
+ensure-localbin:
 	mkdir -p "$(LOCALBIN)"
 
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
@@ -161,7 +163,7 @@ SERVER_GC_FLAGS =
 # arch) so release builds can produce a binary per target architecture.
 .PHONY: build-server
 build-server-helper: GOOS = linux
-build-server-helper: $(LOCALBIN)
+build-server-helper: ensure-localbin
 # We need to ensure that /public/dist/index.html exists before building Everest
 # API server because it's embedded into the binary and missing file will cause
 # build failure. We avoid touching the file if it already exists to prevent
@@ -198,7 +200,7 @@ CLI_GC_FLAGS =
 
 # Helper target to build Everest CLI binary.
 .PHONY: build-cli-helper
-build-cli-helper: $(LOCALBIN) charts
+build-cli-helper: ensure-localbin charts
 	$(info Building Everest CLI for $(GOOS)/$(GOARCH) with CGO_ENABLED=$(CGO_ENABLED))
 	go build -v $(CLI_BUILD_TAGS) $(CLI_GC_FLAGS) -ldflags "$(CLI_LD_FLAGS)" -o "$(LOCALBIN)/everestctl" ./cmd/cli
 
@@ -240,9 +242,9 @@ CONTROLLER_GC_FLAGS =
 # release builds can produce a binary per target architecture.
 .PHONY: build-controller-helper
 build-controller-helper: GOOS = linux
-build-controller-helper: $(LOCALBIN)
+build-controller-helper: ensure-localbin
 	$(info Building Everest controller manager for $(GOOS)/$(GOARCH) with CGO_ENABLED=$(CGO_ENABLED))
-	go build -v $(CONTROLLER_BUILD_TAGS) $(CONTROLLER_GC_FLAGS) -ldflags "$(CONTROLLER_LD_FLAGS)" -o $(LOCALBIN)/manager ./cmd/controller
+	go build -v $(CONTROLLER_BUILD_TAGS) $(CONTROLLER_GC_FLAGS) -ldflags "$(CONTROLLER_LD_FLAGS)" -o "$(LOCALBIN)/manager" ./cmd/controller
 
 .PHONY: build-controller
 build-controller: CONTROLLER_LD_FLAGS += -s -w
@@ -372,7 +374,7 @@ undeploy: build-cli-debug ## Undeploy Everest from K8S cluster using Everest CLI
 .PHONY: add-shared-everest-namespace
 add-shared-everest-namespace: ## Add shared Everest namespace with all operators (usage: DB_NAMESPACES=everest make add-shared-everest-namespace).
 	$(info Adding shared namespaces=${DB_NAMESPACES} to Everest using everestctl)
-	$(LOCALBIN)/everestctl namespaces add $(DB_NAMESPACES) -v \
+	"$(LOCALBIN)/everestctl" namespaces add $(DB_NAMESPACES) -v \
 	--operator.mongodb=true \
 	--operator.postgresql=true \
 	--operator.mysql=true \
@@ -470,11 +472,11 @@ prepare-pr: gen ## Prepare code for pushing to GitHub PR (includes 'update-dev-c
 
 .PHONY: gen-crds-deepcopy
 gen-crds-deepcopy: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	"$(CONTROLLER_GEN)" object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: gen-crds-manifests
 gen-crds-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd:allowDangerousTypes=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	"$(CONTROLLER_GEN)" rbac:roleName=manager-role crd:allowDangerousTypes=true webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 ##@ Kustomize Deployment
 
@@ -512,7 +514,7 @@ deploy-test-controller: gen-crds-manifests kustomize deploy-cert-manager
 	kubectl apply -f https://raw.githubusercontent.com/VictoriaMetrics/operator/v$(VICTORIAMETRICS_OPERATOR_VERSION)/config/crd/overlay/crd.yaml
 	kubectl wait --for condition=established --timeout=10s crd vmagents.operator.victoriametrics.com
 	cd config/test && "$(KUSTOMIZE)" edit set image controller=${EVEREST_CONTROLLER_IMG}
-	$(KUSTOMIZE) build config/test | kubectl apply -f -
+	"$(KUSTOMIZE)" build config/test | kubectl apply -f -
 	kubectl delete pod -n openeverest-system -l control-plane=controller-manager
 	$(MAKE) wait-test-controller
 
@@ -523,14 +525,12 @@ wait-test-controller: # Wait for the test controller deployment to be available.
 ##@ Dependencies
 
 .PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+controller-gen: ensure-localbin ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
+	test -s "$(LOCALBIN)/controller-gen" && "$(LOCALBIN)/controller-gen" --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN="$(LOCALBIN)" go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
+kustomize: ensure-localbin ## Download kustomize locally if necessary.
 	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
 .PHONY: setup-envtest
@@ -542,8 +542,7 @@ setup-envtest: envtest ## Download the binaries required for ENVTEST.
 	}
 
 .PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
+envtest: ensure-localbin ## Download setup-envtest locally if necessary.
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 .PHONY: deploy-cert-manager
