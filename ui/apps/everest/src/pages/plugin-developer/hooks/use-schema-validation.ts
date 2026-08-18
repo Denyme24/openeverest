@@ -15,7 +15,7 @@
 import { useMemo } from 'react';
 import { TopologyUISchemas } from 'components/ui-generator/ui-generator.types';
 import { validateSchema } from '../utils/validate-schema';
-import { Diagnostic } from '../editor/protocol';
+import { Diagnostic } from '../editor/types';
 
 type SchemaValidation = {
   diagnostics: Diagnostic[];

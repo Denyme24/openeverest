@@ -16,7 +16,7 @@
 
 import { Typography, Paper, Button, Stack, Box, useTheme } from '@mui/material';
 import { CodeMirrorEditor } from '../editor/CodeMirrorEditor';
-import { Diagnostic } from '../editor/protocol';
+import { Diagnostic } from '../editor/types';
 
 interface YamlEditorPanelProps {
   yamlText: string;

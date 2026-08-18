@@ -26,54 +26,8 @@ export type Diagnostic = {
   severity: DiagnosticSeverity;
 };
 
-// Parent (React host) → iframe (CM6 bundle).
-export type HostToEditorMessage =
-  | { type: 'init'; value: string; theme: EditorTheme }
-  | { type: 'setTheme'; theme: EditorTheme }
-  | { type: 'setDiagnostics'; diagnostics: Diagnostic[] };
-
-// iframe (CM6 bundle) → parent (React host).
-export type EditorToHostMessage =
-  | { type: 'ready' }
-  | { type: 'change'; value: string }
-  | { type: 'error'; message: string };
-
-export const isEditorToHostMessage = (
-  data: unknown
-): data is EditorToHostMessage => {
-  if (typeof data !== 'object' || data === null) return false;
-  const d = data as Record<string, unknown>;
-  switch (d.type) {
-    case 'ready':
-      return true;
-    case 'change':
-      return typeof d.value === 'string';
-    case 'error':
-      return typeof d.message === 'string';
-    default:
-      return false;
-  }
-};
-
-export const isHostToEditorMessage = (
-  data: unknown
-): data is HostToEditorMessage => {
-  if (typeof data !== 'object' || data === null) return false;
-  const d = data as Record<string, unknown>;
-  switch (d.type) {
-    case 'init':
-      return typeof d.value === 'string' && typeof d.theme === 'string';
-    case 'setTheme':
-      return typeof d.theme === 'string';
-    case 'setDiagnostics':
-      return Array.isArray(d.diagnostics);
-    default:
-      return false;
-  }
-};
-
 // Convert a 1-based line/column into a 0-based character offset in `text`,
-// clamping anything out of range into the document. Used by the CM6 bundle to
+// clamping anything out of range into the document. Used by CodeMirrorEditor to
 // place lint ranges, and unit-tested here in isolation.
 export const lineColToOffset = (
   text: string,

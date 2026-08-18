@@ -19,7 +19,7 @@ import {
   topologyUISchemasSchema,
   FIELD_UI_TYPES,
 } from './topology-ui-schema.zod';
-import { Diagnostic } from '../editor/protocol';
+import { Diagnostic } from '../editor/types';
 
 type ValidateResult = {
   diagnostics: Diagnostic[];
