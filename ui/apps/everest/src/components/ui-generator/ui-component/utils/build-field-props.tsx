@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { InputAdornment } from '@mui/material';
-import { TextFieldProps, SelectProps } from '@mui/material';
+import { TextFieldProps, SelectProps, SwitchProps } from '@mui/material';
 import { FieldType } from 'components/ui-generator/ui-generator.types';
 import { MappedFieldProps } from './get-mapped-params';
 import { coerceNumberInputValue } from './coerce-number-input-value';
@@ -25,8 +25,13 @@ export const buildFieldProps = (
 ): Record<string, unknown> => {
   // mappedProps is undefined when a field declares no `fieldParams` (e.g. a
   // bare `uiType: hidden`); fall back to an empty object so destructuring is safe.
-  const { badge, textFieldProps, selectFieldProps, ...restMappedProps } =
-    mappedProps ?? {};
+  const {
+    badge,
+    textFieldProps,
+    selectFieldProps,
+    switchFieldProps,
+    ...restMappedProps
+  } = mappedProps ?? {};
 
   const finalTextFieldProps = buildTextFieldProps(
     textFieldProps,
@@ -39,6 +44,10 @@ export const buildFieldProps = (
     isDisabled,
     badge,
     uiType
+  );
+  const finalSwitchFieldProps = buildSwitchFieldProps(
+    switchFieldProps,
+    isDisabled
   );
 
   return {
@@ -60,6 +69,21 @@ export const buildFieldProps = (
     ...(finalSelectFieldProps
       ? { selectFieldProps: finalSelectFieldProps }
       : {}),
+    ...(finalSwitchFieldProps
+      ? { switchFieldProps: finalSwitchFieldProps }
+      : {}),
+  };
+};
+
+const buildSwitchFieldProps = (
+  switchFieldProps: Partial<SwitchProps> | undefined,
+  isDisabled: boolean
+): Partial<SwitchProps> | undefined => {
+  if (!switchFieldProps && !isDisabled) return undefined;
+
+  return {
+    ...switchFieldProps,
+    ...(isDisabled ? { disabled: true } : {}),
   };
 };
 
