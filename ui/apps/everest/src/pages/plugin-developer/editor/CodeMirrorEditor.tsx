@@ -105,9 +105,6 @@ export const CodeMirrorEditor = ({
   onChangeRef.current = onChange;
   const changeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const themeCompartment = useRef(new Compartment());
-  // The one text we emitted and are still expecting back as `value`. Consumed
-  // on the next value change, so it can't suppress a later, deliberate reload
-  // of that same text (e.g. re-selecting a saved schema).
   const pendingEchoRef = useRef<string | null>(null);
 
   // Mount CodeMirror once. Initial value/theme come from the first render; later
