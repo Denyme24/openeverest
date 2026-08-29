@@ -59,8 +59,10 @@ const readSavedSchemas = (): SavedSchemas => {
       return {};
     }
     return Object.fromEntries(
-      Object.entries(parsed).filter(([, yaml]) => typeof yaml === 'string')
-    ) as SavedSchemas;
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string'
+      )
+    );
   } catch {
     return {};
   }

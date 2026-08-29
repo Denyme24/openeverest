@@ -23,7 +23,8 @@ import {
 import { TestWrapper } from 'utils/test';
 import { UIGeneratorBuilder } from './ui-generator-builder';
 import { formatYamlText } from './utils/yaml-json-converter';
-import { Messages as DatabaseFormMessages } from 'pages/database-form/database-form.messages';
+import { Messages as OutputPanelMessages } from './output-panel/output-panel.messages';
+import { Messages as SchemaToolbarMessages } from './schema-toolbar/schema-toolbar.messages';
 
 // Hoisted so the vi.mock factory below (also hoisted) can read it.
 const { VALID_YAML } = vi.hoisted(() => ({
@@ -200,9 +201,7 @@ describe('UIGeneratorBuilder', () => {
 
     expect(screen.queryByTestId('output-json')).not.toBeInTheDocument();
     expect(
-      screen.getByText(
-        `Fill the form and click ${DatabaseFormMessages.createDatabase} to generate the payload.`
-      )
+      screen.getByText(OutputPanelMessages.emptyState)
     ).toBeInTheDocument();
   });
 
@@ -232,20 +231,27 @@ describe('UIGeneratorBuilder', () => {
     expect(screen.queryByTestId('output-json')).not.toBeInTheDocument();
   });
 
-  it('saves the current schema under a name', () => {
+  it('saves the current schema under a name', async () => {
     renderBuilder();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: SchemaToolbarMessages.save })
+    );
     const dialog = screen.getByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Schema name'), {
-      target: { value: 'mine' },
-    });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    fireEvent.change(
+      within(dialog).getByLabelText(SchemaToolbarMessages.saveDialog.nameLabel),
+      { target: { value: 'mine' } }
+    );
+    const confirm = within(dialog).getByTestId('form-dialog-save');
+    await waitFor(() => expect(confirm).toBeEnabled(), { timeout: 5000 });
+    fireEvent.click(confirm);
 
     // The builder pairs the chosen name with the current editor YAML.
-    expect(
-      JSON.parse(localStorage.getItem('everest.playground.saved')!)
-    ).toEqual({ mine: VALID_YAML });
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem('everest.playground.saved')!)
+      ).toEqual({ mine: VALID_YAML })
+    );
   });
 
   it('loads a saved schema into the editor', async () => {

@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
-} from '@mui/material';
+import { Button, MenuItem, Stack, TextField, Tooltip } from '@mui/material';
+import { TextInput } from '@percona/ui-lib';
+import { FormDialog } from 'components/form-dialog';
 import { useState } from 'react';
+import { z } from 'zod';
+import { Messages } from './schema-toolbar.messages';
+
+const saveSchemaFormSchema = z.object({
+  name: z.string().trim().min(1),
+});
+
+type SaveSchemaForm = z.infer<typeof saveSchemaFormSchema>;
 
 export type SchemaToolbarProps = {
   names: string[];
@@ -44,29 +44,19 @@ export const SchemaToolbar = ({
 }: SchemaToolbarProps) => {
   const [selectedName, setSelectedName] = useState('');
   const [saveOpen, setSaveOpen] = useState(false);
-  const [draftName, setDraftName] = useState('');
 
   const canDelete = selectedName !== '' && names.includes(selectedName);
-  const trimmedDraft = draftName.trim();
 
   const handleLoad = (name: string) => {
     setSelectedName(name);
     onLoad(name);
   };
 
-  const openSaveDialog = () => {
-    setDraftName(selectedName);
-    setSaveOpen(true);
-  };
-
   const closeSaveDialog = () => setSaveOpen(false);
 
-  const confirmSave = () => {
-    if (!trimmedDraft) {
-      return;
-    }
-    onSave(trimmedDraft);
-    setSelectedName(trimmedDraft);
+  const confirmSave = ({ name }: SaveSchemaForm) => {
+    onSave(name);
+    setSelectedName(name);
     setSaveOpen(false);
   };
 
@@ -95,7 +85,7 @@ export const SchemaToolbar = ({
       <TextField
         select
         size="small"
-        label="Saved schemas"
+        label={Messages.savedSchemas}
         value={selectedName}
         onChange={(e) => handleLoad(e.target.value)}
         disabled={names.length === 0}
@@ -110,10 +100,10 @@ export const SchemaToolbar = ({
       <Button
         size="small"
         variant="contained"
-        onClick={openSaveDialog}
+        onClick={() => setSaveOpen(true)}
         sx={{ flexShrink: 0 }}
       >
-        Save
+        {Messages.save}
       </Button>
       <Button
         size="small"
@@ -122,44 +112,39 @@ export const SchemaToolbar = ({
         disabled={!canDelete}
         sx={{ flexShrink: 0 }}
       >
-        Delete
+        {Messages.delete}
       </Button>
-      {/* Short label so the strip fits; the tooltip carries the full meaning. */}
-      <Tooltip title="Reset to the default example schema">
+      <Tooltip title={Messages.resetTooltip}>
         <Button
           size="small"
           variant="text"
           onClick={handleReset}
           sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
         >
-          Reset
+          {Messages.reset}
         </Button>
       </Tooltip>
 
-      <Dialog open={saveOpen} onClose={closeSaveDialog}>
-        <DialogTitle>Save schema</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            label="Schema name"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            sx={{ mt: 1, minWidth: 320 }}
+      {/* Mounted only while open so the name field picks up the current
+          selection as its default. */}
+      {saveOpen && (
+        <FormDialog
+          isOpen
+          closeModal={closeSaveDialog}
+          headerMessage={Messages.saveDialog.header}
+          schema={saveSchemaFormSchema}
+          defaultValues={{ name: selectedName }}
+          onSubmit={confirmSave}
+          submitMessage={Messages.save}
+          cancelMessage={Messages.cancel}
+        >
+          <TextInput
+            name="name"
+            label={Messages.saveDialog.nameLabel}
+            textFieldProps={{ autoFocus: true }}
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeSaveDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={confirmSave}
-            disabled={!trimmedDraft}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </FormDialog>
+      )}
     </Stack>
   );
 };

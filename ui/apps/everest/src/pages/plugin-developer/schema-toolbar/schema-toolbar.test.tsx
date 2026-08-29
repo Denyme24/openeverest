@@ -22,6 +22,11 @@ import {
 } from '@testing-library/react';
 import { TestWrapper } from 'utils/test';
 import { SchemaToolbar, SchemaToolbarProps } from './schema-toolbar';
+import { Messages } from './schema-toolbar.messages';
+
+// The dialog gates its submit on an async zod resolver, which can lag well
+// past the 1s default on a loaded CI runner.
+const VALIDATION_WAIT = { timeout: 5000 };
 
 const setup = (props: Partial<SchemaToolbarProps> = {}) => {
   const onSave = vi.fn();
@@ -56,20 +61,20 @@ describe('SchemaToolbar', () => {
   it('saves a named schema through the dialog', async () => {
     const { onSave } = setup({ names: [] });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: Messages.save }));
 
     const dialog = await screen.findByRole('dialog');
-    const confirm = within(dialog).getByRole('button', { name: 'Save' });
-    // Empty field keeps the confirm disabled.
-    expect(confirm).toBeDisabled();
+    const confirm = within(dialog).getByTestId('form-dialog-save');
+    await waitFor(() => expect(confirm).toBeDisabled(), VALIDATION_WAIT);
 
-    fireEvent.change(within(dialog).getByLabelText('Schema name'), {
-      target: { value: 'my-schema' },
-    });
-    expect(confirm).toBeEnabled();
+    fireEvent.change(
+      within(dialog).getByLabelText(Messages.saveDialog.nameLabel),
+      { target: { value: 'my-schema' } }
+    );
+    await waitFor(() => expect(confirm).toBeEnabled(), VALIDATION_WAIT);
     fireEvent.click(confirm);
 
-    expect(onSave).toHaveBeenCalledWith('my-schema');
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('my-schema'));
     await waitFor(() =>
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     );
@@ -78,14 +83,37 @@ describe('SchemaToolbar', () => {
   it('does not save a whitespace-only name', async () => {
     const { onSave } = setup({ names: [] });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: Messages.save }));
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Schema name'), {
-      target: { value: '   ' },
-    });
+    fireEvent.change(
+      within(dialog).getByLabelText(Messages.saveDialog.nameLabel),
+      { target: { value: '   ' } }
+    );
 
-    expect(within(dialog).getByRole('button', { name: 'Save' })).toBeDisabled();
+    await waitFor(
+      () =>
+        expect(within(dialog).getByTestId('form-dialog-save')).toBeDisabled(),
+      VALIDATION_WAIT
+    );
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('saves the trimmed name, not the raw input', async () => {
+    const { onSave } = setup({ names: [] });
+
+    fireEvent.click(screen.getByRole('button', { name: Messages.save }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(
+      within(dialog).getByLabelText(Messages.saveDialog.nameLabel),
+      { target: { value: '  spaced  ' } }
+    );
+
+    const confirm = within(dialog).getByTestId('form-dialog-save');
+    await waitFor(() => expect(confirm).toBeEnabled(), VALIDATION_WAIT);
+    fireEvent.click(confirm);
+
+    // The name becomes a storage key, so stray whitespace must not survive.
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('spaced'));
   });
 
   it('loads the schema chosen in the select', async () => {
@@ -99,11 +127,13 @@ describe('SchemaToolbar', () => {
   it('disables Delete until a schema is selected, then deletes it', async () => {
     const { onDelete } = setup({ names: ['a', 'b'] });
 
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: Messages.delete })
+    ).toBeDisabled();
 
     await selectOption('a');
 
-    const deleteBtn = screen.getByRole('button', { name: 'Delete' });
+    const deleteBtn = screen.getByRole('button', { name: Messages.delete });
     expect(deleteBtn).toBeEnabled();
     fireEvent.click(deleteBtn);
 
